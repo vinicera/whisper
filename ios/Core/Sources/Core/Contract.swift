@@ -108,6 +108,12 @@ public struct SpeechSegment: Codable, Sendable, Identifiable {
     public var id: Int
     public var kind: String  // aviso | enunciado | plano | passo | resposta
     public var text: String
+
+    public init(id: Int, kind: String, text: String) {
+        self.id = id
+        self.kind = kind
+        self.text = text
+    }
 }
 
 public struct Speech: Codable, Sendable {
@@ -115,6 +121,14 @@ public struct Speech: Codable, Sendable {
     public var segments: [SpeechSegment]
     public var lang: String
     public var estimatedSeconds: Int
+
+    public init(fullText: String, segments: [SpeechSegment], lang: String = "pt-BR", estimatedSeconds: Int? = nil) {
+        self.fullText = fullText
+        self.segments = segments
+        self.lang = lang
+        // ~150 palavras por minuto
+        self.estimatedSeconds = estimatedSeconds ?? max(1, fullText.split(separator: " ").count * 2 / 5)
+    }
 }
 
 public struct Verification: Codable, Sendable {
@@ -122,12 +136,25 @@ public struct Verification: Codable, Sendable {
     public var passed: Bool?
     public var engine: String
     public var notes: String?
+
+    public init(performed: Bool, passed: Bool? = nil, engine: String = "sympy", notes: String? = nil) {
+        self.performed = performed
+        self.passed = passed
+        self.engine = engine
+        self.notes = notes
+    }
 }
 
 public struct ErrorInfo: Codable, Sendable {
     public var code: String
     public var retryable: Bool
     public var message: String?
+
+    public init(code: String, retryable: Bool, message: String? = nil) {
+        self.code = code
+        self.retryable = retryable
+        self.message = message
+    }
 }
 
 public struct SolveResponse: Codable, Sendable {
@@ -136,6 +163,15 @@ public struct SolveResponse: Codable, Sendable {
     public var speech: Speech
     public var verification: Verification
     public var error: ErrorInfo?
+
+    public init(requestId: String, status: SolveStatus, speech: Speech, verification: Verification,
+                error: ErrorInfo? = nil) {
+        self.requestId = requestId
+        self.status = status
+        self.speech = speech
+        self.verification = verification
+        self.error = error
+    }
 }
 
 public struct HealthResponse: Codable, Sendable {

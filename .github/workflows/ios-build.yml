@@ -3,7 +3,7 @@ name: iOS build (.ipa sem assinatura)
 on:
   push:
     branches: [main]
-    paths: ["ios/**", "shared/**", ".github/workflows/ios-build.yml"]
+    paths: ["ios/**", "shared/**", "server/app/prompts/**", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +22,14 @@ jobs:
 
       - name: Testes do Core (sanitizador + contrato)
         working-directory: ios/Core
-        run: swift test
+        run: |
+          set -o pipefail
+          if ! swift test 2>&1 | tee "$RUNNER_TEMP/swifttest.log"; then
+            grep -E "error:|failed" "$RUNNER_TEMP/swifttest.log" | sort -u | head -30 | while read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          fi
 
       - name: Instalar XcodeGen
         run: brew install xcodegen
@@ -47,7 +54,13 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E "error:|warning:|ARCHIVE" || true
-          test -d "$RUNNER_TEMP/Whisper.xcarchive/Products/Applications/Whisper.app"
+          if [ ! -d "$RUNNER_TEMP/Whisper.xcarchive/Products/Applications/Whisper.app" ]; then
+            # Vira "annotation" do GitHub: legivel pela API publica, sem login.
+            grep -E "error:" "$RUNNER_TEMP/xcodebuild.log" | sort -u | head -30 | while read -r line; do
+              echo "::error::${line//$'\n'/ }"
+            done
+            exit 1
+          fi
 
       - name: Empacotar .ipa
         run: |

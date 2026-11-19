@@ -29,7 +29,7 @@ class Settings:
         return cls(
             llm_provider=os.getenv("LLM_PROVIDER", "gemini").strip().lower(),
             gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
-            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
+            gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip(),
             bridge_token=os.getenv("BRIDGE_TOKEN", "").strip(),
             verify_timeout_seconds=float(os.getenv("VERIFY_TIMEOUT_SECONDS", "8")),
             max_retries_on_verify_fail=int(os.getenv("MAX_RETRIES_ON_VERIFY_FAIL", "1")),

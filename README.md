@@ -13,7 +13,7 @@ shared/       Contrato JSON Schema + casos de teste do sanitizador (usados pelos
 ## Status das fases
 - [x] **Fase 0**: pipeline do CI gerando o `.ipa` e app mínimo de voz (TTS pt-BR + sanitizador)
 - [x] **Fase 1**: servidor (`/v1/health`, `/v1/solve`, `/v1/history`), verificação SymPy com re-geração e testes
-- [ ] Fase 2: app MVP em primeiro plano (câmera/última foto -> Ponte/Direto -> fala)
+- [x] **Fase 2**: app em primeiro plano: última foto, câmera ou galeria -> Ponte/Direto/Automático -> fala por passos
 - [ ] Fase 3: gatilho físico em segundo plano (`MPRemoteCommandCenter` + loop silencioso)
 - [ ] Fase 4: robustez (fallback, fila, streaming por segmentos)
 - [ ] Fase 5: captura direta pelo SDK Meta Wearables (DAT)

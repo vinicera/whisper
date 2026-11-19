@@ -16,6 +16,9 @@ targets:
     platform: iOS
     sources:
       - path: App
+      # Mesmo system prompt do servidor (fonte unica), usado no Modo Direto.
+      - path: ../server/app/prompts/system_pt.md
+        buildPhase: resources
     dependencies:
       - package: Core
     info:
@@ -31,6 +34,9 @@ targets:
         NSPhotoLibraryUsageDescription: "Para ler a foto mais recente da questão tirada com os óculos."
         NSCameraUsageDescription: "Para fotografar a questão com o iPhone."
         NSLocalNetworkUsageDescription: "Para falar com o servidor no seu PC (Modo Ponte)."
+        # Prototipo pessoal: permite http:// para o IP do PC (Tailscale/LAN), sem certificado.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.whisper.app
