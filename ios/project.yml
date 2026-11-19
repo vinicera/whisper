@@ -1,0 +1,48 @@
+# XcodeGen: o .xcodeproj e gerado no CI (macOS). Nao versione o .xcodeproj.
+name: Whisper
+options:
+  bundleIdPrefix: dev.whisper
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  Core:
+    path: Core
+
+targets:
+  Whisper:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: Core
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Whisper
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Fase 3: manter o app vivo (loop silencioso) para receber o toque dos oculos.
+        UIBackgroundModes: [audio]
+        NSPhotoLibraryUsageDescription: "Para ler a foto mais recente da questão tirada com os óculos."
+        NSCameraUsageDescription: "Para fotografar a questão com o iPhone."
+        NSLocalNetworkUsageDescription: "Para falar com o servidor no seu PC (Modo Ponte)."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.whisper.app
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_PREVIEWS: YES
+
+schemes:
+  Whisper:
+    build:
+      targets:
+        Whisper: all

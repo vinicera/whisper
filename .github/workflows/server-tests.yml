@@ -1,0 +1,26 @@
+name: Server tests
+
+on:
+  push:
+    paths: ["server/**", "shared/**", ".github/workflows/server-tests.yml"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: server/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+        env:
+          LLM_PROVIDER: fake

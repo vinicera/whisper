@@ -1,0 +1,187 @@
+{
+  "$defs": {
+    "ErrorInfo": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ErrorInfo",
+      "type": "object"
+    },
+    "Speech": {
+      "properties": {
+        "full_text": {
+          "title": "Full Text",
+          "type": "string"
+        },
+        "segments": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SpeechSegment"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
+        "lang": {
+          "default": "pt-BR",
+          "title": "Lang",
+          "type": "string"
+        },
+        "estimated_seconds": {
+          "default": 0,
+          "title": "Estimated Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "full_text"
+      ],
+      "title": "Speech",
+      "type": "object"
+    },
+    "SpeechSegment": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "aviso",
+            "enunciado",
+            "plano",
+            "passo",
+            "resposta"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "text"
+      ],
+      "title": "SpeechSegment",
+      "type": "object"
+    },
+    "Verification": {
+      "properties": {
+        "performed": {
+          "default": false,
+          "title": "Performed",
+          "type": "boolean"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passed"
+        },
+        "engine": {
+          "default": "sympy",
+          "title": "Engine",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "title": "Verification",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unreadable",
+        "error"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "speech": {
+      "$ref": "#/$defs/Speech"
+    },
+    "verification": {
+      "$ref": "#/$defs/Verification",
+      "default": {
+        "performed": false,
+        "passed": null,
+        "engine": "sympy",
+        "notes": null
+      }
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ErrorInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "debug": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Debug",
+      "type": "object"
+    }
+  },
+  "required": [
+    "request_id",
+    "status",
+    "speech"
+  ],
+  "title": "SolveResponse",
+  "type": "object"
+}

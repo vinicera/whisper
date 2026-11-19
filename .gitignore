@@ -1,0 +1,19 @@
+# Segredos
+.env
+*.pem
+*.key
+
+# Python
+server/.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+server/data/
+
+# iOS (gerados no CI pelo XcodeGen)
+ios/*.xcodeproj/
+ios/App/Info.plist
+ios/Core/.build/
+ios/Core/.swiftpm/
+*.ipa
+DerivedData/

@@ -1,0 +1,181 @@
+{
+  "$defs": {
+    "ClientInfo": {
+      "properties": {
+        "app_version": {
+          "default": "0.0.0",
+          "title": "App Version",
+          "type": "string"
+        },
+        "device": {
+          "default": "unknown",
+          "title": "Device",
+          "type": "string"
+        },
+        "locale": {
+          "default": "pt-BR",
+          "title": "Locale",
+          "type": "string"
+        }
+      },
+      "title": "ClientInfo",
+      "type": "object"
+    },
+    "ImagePayload": {
+      "properties": {
+        "mime": {
+          "default": "image/jpeg",
+          "enum": [
+            "image/jpeg",
+            "image/png",
+            "image/heic",
+            "image/webp"
+          ],
+          "title": "Mime",
+          "type": "string"
+        },
+        "base64": {
+          "minLength": 16,
+          "title": "Base64",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captured At"
+        },
+        "source": {
+          "default": "photo_library",
+          "enum": [
+            "photo_library",
+            "camera",
+            "glasses_sdk",
+            "upload"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "base64"
+      ],
+      "title": "ImagePayload",
+      "type": "object"
+    },
+    "SolveOptions": {
+      "properties": {
+        "mode": {
+          "default": "tutor",
+          "enum": [
+            "tutor",
+            "resposta",
+            "ditado"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "detail": {
+          "default": "passo_a_passo",
+          "enum": [
+            "resumo",
+            "passo_a_passo"
+          ],
+          "title": "Detail",
+          "type": "string"
+        },
+        "question_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Question Hint"
+        },
+        "verify": {
+          "default": true,
+          "title": "Verify",
+          "type": "boolean"
+        },
+        "max_speech_seconds": {
+          "default": 120,
+          "maximum": 600,
+          "minimum": 10,
+          "title": "Max Speech Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "SolveOptions",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "request_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "client": {
+      "$ref": "#/$defs/ClientInfo",
+      "default": {
+        "app_version": "0.0.0",
+        "device": "unknown",
+        "locale": "pt-BR"
+      }
+    },
+    "image": {
+      "$ref": "#/$defs/ImagePayload"
+    },
+    "options": {
+      "$ref": "#/$defs/SolveOptions",
+      "default": {
+        "mode": "tutor",
+        "detail": "passo_a_passo",
+        "question_hint": null,
+        "verify": true,
+        "max_speech_seconds": 120
+      }
+    }
+  },
+  "required": [
+    "request_id",
+    "image"
+  ],
+  "title": "SolveRequest",
+  "type": "object"
+}

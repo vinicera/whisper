@@ -1,0 +1,215 @@
+{
+  "$defs": {
+    "Passo": {
+      "properties": {
+        "falado": {
+          "title": "Falado",
+          "type": "string"
+        },
+        "latex": {
+          "default": "",
+          "title": "Latex",
+          "type": "string"
+        }
+      },
+      "required": [
+        "falado"
+      ],
+      "title": "Passo",
+      "type": "object"
+    },
+    "SympyCheck": {
+      "description": "Bloco que o servidor executa no SymPy para conferir a resposta.",
+      "properties": {
+        "expr": {
+          "description": "Expressao principal em sintaxe Python/SymPy, com * explicito. Ex.: x**2*sin(x)",
+          "title": "Expr",
+          "type": "string"
+        },
+        "var": {
+          "default": "x",
+          "description": "Variavel principal (uma letra)",
+          "title": "Var",
+          "type": "string"
+        },
+        "operacao": {
+          "enum": [
+            "derivar",
+            "integrar_indefinida",
+            "integrar_definida",
+            "limite",
+            "resolver",
+            "simplificar",
+            "nenhuma"
+          ],
+          "title": "Operacao",
+          "type": "string"
+        },
+        "ordem": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ordem da derivada (padrao 1)",
+          "title": "Ordem"
+        },
+        "inferior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Limite inferior da integral definida",
+          "title": "Inferior"
+        },
+        "superior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Limite superior da integral definida",
+          "title": "Superior"
+        },
+        "tende_a": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ponto do limite. Use oo para infinito",
+          "title": "Tende A"
+        },
+        "lado": {
+          "anyOf": [
+            {
+              "enum": [
+                "+",
+                "-",
+                "+-"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lado do limite",
+          "title": "Lado"
+        },
+        "resultado": {
+          "description": "Resultado final em sintaxe SymPy. Em 'resolver', separe as raizes com ;",
+          "title": "Resultado",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expr",
+        "operacao",
+        "resultado"
+      ],
+      "title": "SympyCheck",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "legivel": {
+      "title": "Legivel",
+      "type": "boolean"
+    },
+    "motivo_ilegivel_falado": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Motivo Ilegivel Falado"
+    },
+    "enunciado_latex": {
+      "default": "",
+      "title": "Enunciado Latex",
+      "type": "string"
+    },
+    "enunciado_falado": {
+      "default": "",
+      "title": "Enunciado Falado",
+      "type": "string"
+    },
+    "tipo": {
+      "default": "outro",
+      "enum": [
+        "derivada",
+        "integral_indefinida",
+        "integral_definida",
+        "limite",
+        "serie",
+        "edo",
+        "equacao",
+        "outro"
+      ],
+      "title": "Tipo",
+      "type": "string"
+    },
+    "plano_falado": {
+      "default": "",
+      "title": "Plano Falado",
+      "type": "string"
+    },
+    "sympy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SympyCheck"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "passos": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Passo"
+      },
+      "title": "Passos",
+      "type": "array"
+    },
+    "resposta_falada": {
+      "default": "",
+      "title": "Resposta Falada",
+      "type": "string"
+    },
+    "resposta_latex": {
+      "default": "",
+      "title": "Resposta Latex",
+      "type": "string"
+    }
+  },
+  "required": [
+    "legivel"
+  ],
+  "title": "ModelAnswer",
+  "type": "object"
+}
