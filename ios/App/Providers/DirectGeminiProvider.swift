@@ -2,6 +2,7 @@ import Core
 import Foundation
 
 /// Modo Direto: o iPhone chama a API do Gemini sem passar pelo PC (sem verificacao SymPy).
+/// Usa streaming: os trechos falados saem assim que o modelo termina de escreve-los.
 struct DirectGeminiProvider: SolveProvider {
     let apiKey: String
     let model: String
@@ -33,27 +34,39 @@ struct DirectGeminiProvider: SolveProvider {
         let candidates: [Candidate]?
         let usageMetadata: Usage?
         let error: APIError?
+
+        var answerText: String {
+            (candidates?.first?.content?.parts ?? []).filter { $0.thought != true }.compactMap(\.text).joined()
+        }
     }
 
     func solve(_ image: EncodedImage, options: SolveOptions) async throws -> SolveResponse {
+        try await solve(image, options: options, onSegment: { _ in })
+    }
+
+    func solve(_ image: EncodedImage, options: SolveOptions,
+               onSegment: @escaping SegmentHandler) async throws -> SolveResponse {
         guard !apiKey.isEmpty else {
             throw ProviderError.notConfigured("A chave do Gemini não está configurada. Abra as configurações do app.")
         }
         let modelId = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelId):generateContent")
+        guard let url = URL(string:
+            "https://generativelanguage.googleapis.com/v1beta/models/\(modelId):streamGenerateContent?alt=sse")
         else { throw ProviderError.notConfigured("Nome de modelo inválido: \(modelId)") }
 
         let level = thinkingLevel.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            return try await call(url: url, image: image, options: options, thinking: level.isEmpty ? nil : level)
+            return try await call(url: url, image: image, options: options,
+                                  thinking: level.isEmpty ? nil : level, onSegment: onSegment)
         } catch ProviderError.http(400, let message) where !level.isEmpty && message.lowercased().contains("think") {
             // Modelo que nao aceita thinkingLevel: tenta de novo sem limitar o raciocinio.
             await log("O modelo recusou o nível de raciocínio (\(level)); tentando sem limite.")
-            return try await call(url: url, image: image, options: options, thinking: nil)
+            return try await call(url: url, image: image, options: options, thinking: nil, onSegment: onSegment)
         }
     }
 
-    private func call(url: URL, image: EncodedImage, options: SolveOptions, thinking: String?) async throws -> SolveResponse {
+    private func call(url: URL, image: EncodedImage, options: SolveOptions, thinking: String?,
+                      onSegment: @escaping SegmentHandler) async throws -> SolveResponse {
         let imagePart: [String: Any] = ["inlineData": ["mimeType": image.mime, "data": image.base64]]
         let textPart: [String: Any] = ["text": Prompt.userMessage(options)]
         let userContent: [String: Any] = ["role": "user", "parts": [imagePart, textPart]]
@@ -78,33 +91,57 @@ struct DirectGeminiProvider: SolveProvider {
         req.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        await log("Enviando ao Gemini (\((req.httpBody?.count ?? 0) / 1024) KB,raciocínio: \(thinking ?? "padrão"))")
+        await log("Enviando ao Gemini (\((req.httpBody?.count ?? 0) / 1024) KB, raciocínio: \(thinking ?? "padrão"))")
         let started = Date()
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        let decoded = try? JSONDecoder().decode(GeminiResponse.self, from: data)
+        func elapsed() -> String { String(format: "%.1f", Date().timeIntervalSince(started)) }
 
-        let seconds = String(format: "%.1f", Date().timeIntervalSince(started))
-        if let u = decoded?.usageMetadata {
-            await log("Gemini HTTP \(code) em \(seconds)s · tokens: entrada \(u.promptTokenCount ?? 0), "
+        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else {
+            var data = Data()
+            for try await b in bytes { data.append(b) }
+            // Erro pode vir como JSON unico ou como lista.
+            let message = (try? JSONDecoder().decode(GeminiResponse.self, from: data))?.error?.message
+                ?? (try? JSONDecoder().decode([GeminiResponse].self, from: data))?.first?.error?.message
+                ?? String(decoding: data.prefix(200), as: UTF8.self)
+            await log("Gemini HTTP \(code) em \(elapsed())s")
+            throw ProviderError.http(code, message)
+        }
+
+        var text = ""
+        var extractor = StreamingSegmentExtractor(mode: options.mode)
+        var usage: GeminiResponse.Usage?
+        var finish: String?
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data:") else { continue }
+            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            guard let chunk = try? JSONDecoder().decode(GeminiResponse.self, from: Data(payload.utf8)) else { continue }
+            if let message = chunk.error?.message { throw ProviderError.http(code, message) }
+            usage = chunk.usageMetadata ?? usage
+            finish = chunk.candidates?.first?.finishReason ?? finish
+            let piece = chunk.answerText
+            guard !piece.isEmpty else { continue }
+            if text.isEmpty { await log("Primeiro texto do Gemini em \(elapsed())s") }
+            text += piece
+            for segment in extractor.feed(text) {
+                await onSegment(segment)
+            }
+        }
+
+        if let u = usage {
+            await log("Gemini terminou em \(elapsed())s · tokens: entrada \(u.promptTokenCount ?? 0), "
                 + "raciocínio \(u.thoughtsTokenCount ?? 0), saída \(u.candidatesTokenCount ?? 0)")
         } else {
-            await log("Gemini HTTP \(code) em \(seconds)s")
+            await log("Gemini terminou em \(elapsed())s")
         }
-
-        guard code == 200 else {
-            throw ProviderError.http(code, decoded?.error?.message ?? String(decoding: data.prefix(200), as: UTF8.self))
-        }
-        let parts = decoded?.candidates?.first?.content?.parts ?? []
-        let text = parts.filter { $0.thought != true }.compactMap(\.text).joined()
         guard !text.isEmpty else {
-            throw ProviderError.badResponse("Resposta vazia (\(decoded?.candidates?.first?.finishReason ?? "sem motivo")).")
+            throw ProviderError.badResponse("Resposta vazia (\(finish ?? "sem motivo")).")
         }
         let answer: ModelAnswer
         do {
             answer = try Contract.decoder.decode(ModelAnswer.self, from: Data(text.utf8))
         } catch {
-            throw ProviderError.badResponse("JSON fora do esquema.")
+            throw ProviderError.badResponse("JSON fora do esquema (\(finish ?? "sem motivo")).")
         }
         return SegmentBuilder.response(from: answer, mode: options.mode)
     }

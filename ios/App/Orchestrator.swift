@@ -29,6 +29,10 @@ final class Orchestrator: ObservableObject {
     private var task: Task<Void, Never>?
     private var watchdog: Task<Void, Never>?
     private var timedOut = false
+    /// Trechos ja falados durante o streaming da resolucao atual.
+    private var streamedCount = 0
+    /// Ultimo sinal de vida do modelo (o limite de tempo conta a partir dele).
+    private var lastActivity = Date()
 
     /// Tempo maximo de uma resolucao antes de desistir com aviso.
     static let solveTimeout: TimeInterval = 75
@@ -47,10 +51,10 @@ final class Orchestrator: ObservableObject {
 
     /// Toques nos oculos.
     private func handle(_ action: RemoteControl.Action) {
-        if isBusy {
-            // Enquanto resolve, qualquer toque so informa o andamento.
+        if isBusy && speech.segments.isEmpty {
+            // Nada chegou ainda: qualquer toque so informa o andamento.
             let seconds = workingSince.map { Int(Date().timeIntervalSince($0)) } ?? 0
-            speech.announce("Ainda resolvendo. \(SpeechService.numberWord(seconds)) segundos.")
+            speech.interject("Ainda resolvendo. \(SpeechService.numberWord(seconds)) segundos.")
             return
         }
         guard !speech.segments.isEmpty else {
@@ -114,8 +118,19 @@ final class Orchestrator: ObservableObject {
                 self.phase = .working("Resolvendo (\(provider.label))")
                 let started = Date()
                 self.startWatchdog()
+                self.streamedCount = 0
+                self.speech.beginStream()
                 let options = SolveOptions(mode: self.settings.solveMode)
-                let response = try await provider.solve(image, options: options)
+                let response = try await provider.solve(image, options: options) { [weak self] segment in
+                    guard let self, !Task.isCancelled else { return }
+                    if self.streamedCount == 0 {
+                        let s = String(format: "%.1f", Date().timeIntervalSince(started))
+                        self.log("Começou a falar em \(s)s")
+                    }
+                    self.streamedCount += 1
+                    self.lastActivity = Date()
+                    self.speech.append(segment)
+                }
                 self.stopWatchdog()
                 try Task.checkCancellation()
 
@@ -127,12 +142,17 @@ final class Orchestrator: ObservableObject {
 
                 self.lastResponse = response
                 self.phase = .idle
+                if self.streamedCount > 0 && response.status == .ok {
+                    // Ja esta falando: so guarda a versao final para a navegacao por toques.
+                    self.speech.finishStream(with: response.speech.segments)
+                    return
+                }
                 self.speech.speak(segments: response.speech.segments.isEmpty
                     ? [SpeechSegment(id: 1, kind: "aviso", text: response.speech.fullText)]
                     : response.speech.segments)
             } catch let error where self.timedOut {
                 self.stopWatchdog()
-                let message = "Demorou demais, mais de \(Int(Self.solveTimeout)) segundos. "
+                let message = "O Gemini ficou \(Int(Self.solveTimeout)) segundos sem responder. "
                     + "Tente de novo ou use o raciocínio Rápido."
                 self.log("Erro: tempo esgotado (\(error.localizedDescription))")
                 self.phase = .failed(message)
@@ -152,25 +172,32 @@ final class Orchestrator: ObservableObject {
         }
     }
 
-    /// Cronometro + aviso falado periodico + desistencia apos `solveTimeout`.
+    /// Cronometro + aviso falado periodico + desistencia apos `solveTimeout` sem sinal do modelo.
     private func startWatchdog() {
         stopWatchdog()
         timedOut = false
         workingSince = Date()
-        let interval = Self.heartbeatInterval
+        lastActivity = Date()
+        let interval: TimeInterval = 5
         let limit = Self.solveTimeout
+        let heartbeat = Self.heartbeatInterval
         watchdog = Task { [weak self] in
-            var elapsed: TimeInterval = 0
+            var sinceHeartbeat: TimeInterval = 0
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 guard let self, !Task.isCancelled else { return }
-                elapsed += interval
-                if elapsed >= limit {
+                if Date().timeIntervalSince(self.lastActivity) >= limit {
                     self.timedOut = true
                     self.task?.cancel()
                     return
                 }
-                if !self.speech.isSpeaking { self.speech.announce("Ainda resolvendo.") }
+                sinceHeartbeat += interval
+                if self.speech.isSpeaking {
+                    sinceHeartbeat = 0
+                } else if sinceHeartbeat >= heartbeat {
+                    sinceHeartbeat = 0
+                    self.speech.interject("Ainda resolvendo.")
+                }
             }
         }
     }

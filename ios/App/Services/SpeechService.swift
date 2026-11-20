@@ -59,23 +59,53 @@ final class SpeechService: NSObject, ObservableObject {
         let first = max(0, min(start, newSegments.count - 1))
         let stepTotal = newSegments.filter { $0.kind == "passo" }.count
         for i in first..<newSegments.count {
-            let seg = newSegments[i]
-            if let label = label(for: seg, at: i, in: newSegments, stepTotal: stepTotal) {
-                enqueue(label, index: i, postDelay: 0.35, rateFactor: 0.95)
+            enqueueSegment(at: i, stepTotal: stepTotal)
+        }
+    }
+
+    // MARK: - Streaming (fala enquanto o modelo ainda escreve)
+
+    /// Prepara para receber trechos aos poucos. Nao corta o aviso em andamento.
+    func beginStream() {
+        segments = []
+        currentIndex = nil
+    }
+
+    /// Acrescenta um trecho que acabou de chegar e o coloca na fila de fala.
+    func append(_ segment: SpeechSegment) {
+        segments.append(segment)
+        enqueueSegment(at: segments.count - 1, stepTotal: nil)
+    }
+
+    /// Troca os trechos pela versao final, sem reiniciar a fala.
+    func finishStream(with final: [SpeechSegment]) {
+        if final.count >= segments.count { segments = final }
+    }
+
+    /// Fala algo curto sem interromper a fila (ex.: "ainda resolvendo").
+    func interject(_ raw: String) {
+        enqueue(raw, index: nil, postDelay: 0.3)
+    }
+
+    /// Rotulo + frases com pausas; na resposta final, repete mais devagar.
+    /// `stepTotal` nil = ainda nao se sabe quantos passos ha (streaming).
+    private func enqueueSegment(at i: Int, stepTotal: Int?) {
+        let seg = segments[i]
+        if let label = label(for: seg, at: i, in: segments, stepTotal: stepTotal) {
+            enqueue(label, index: i, postDelay: 0.35, rateFactor: 0.95)
+        }
+        let sentences = Self.sentences(seg.text)
+        for (k, sentence) in sentences.enumerated() {
+            let last = k == sentences.count - 1
+            enqueue(sentence, index: i, postDelay: last ? Self.segmentPause : Self.sentencePause)
+        }
+        if seg.kind == "resposta" {
+            // Resposta final de novo, mais devagar: e a parte que o aluno precisa guardar.
+            enqueue("Repetindo, mais devagar.", index: i, postDelay: 0.4, rateFactor: 0.95)
+            for sentence in sentences {
+                enqueue(sentence, index: i, postDelay: Self.sentencePause + 0.3, rateFactor: 0.82)
             }
-            let sentences = Self.sentences(seg.text)
-            for (k, sentence) in sentences.enumerated() {
-                let last = k == sentences.count - 1
-                enqueue(sentence, index: i, postDelay: last ? Self.segmentPause : Self.sentencePause)
-            }
-            if seg.kind == "resposta" {
-                // Resposta final de novo, mais devagar: e a parte que o aluno precisa guardar.
-                enqueue("Repetindo, mais devagar.", index: i, postDelay: 0.4, rateFactor: 0.95)
-                for sentence in Self.sentences(seg.text) {
-                    enqueue(sentence, index: i, postDelay: Self.sentencePause + 0.3, rateFactor: 0.82)
-                }
-                enqueue("Fim da resposta.", index: i, postDelay: 0.2, rateFactor: 0.95)
-            }
+            enqueue("Fim da resposta.", index: i, postDelay: 0.2, rateFactor: 0.95)
         }
     }
 
@@ -150,12 +180,13 @@ final class SpeechService: NSObject, ObservableObject {
         }
     }
 
-    private func label(for seg: SpeechSegment, at index: Int, in all: [SpeechSegment], stepTotal: Int) -> String? {
+    private func label(for seg: SpeechSegment, at index: Int, in all: [SpeechSegment], stepTotal: Int?) -> String? {
         switch seg.kind {
         case "enunciado": return "Enunciado."
         case "plano": return "Estratégia."
         case "passo":
             let n = all[...index].filter { $0.kind == "passo" }.count
+            guard let stepTotal else { return "Passo \(Self.numberWord(n))." }
             return "Passo \(Self.numberWord(n)) de \(Self.numberWord(stepTotal))."
         case "resposta": return "Resposta final."
         default: return nil

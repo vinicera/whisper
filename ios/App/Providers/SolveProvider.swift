@@ -1,9 +1,22 @@
 import Core
 import Foundation
 
+typealias SegmentHandler = @MainActor (SpeechSegment) -> Void
+
 protocol SolveProvider {
     var label: String { get }
     func solve(_ image: EncodedImage, options: SolveOptions) async throws -> SolveResponse
+    /// Versao com streaming: chama `onSegment` a cada trecho falado pronto, antes do fim.
+    func solve(_ image: EncodedImage, options: SolveOptions,
+               onSegment: @escaping SegmentHandler) async throws -> SolveResponse
+}
+
+extension SolveProvider {
+    /// Provedores sem streaming (ex.: ponte) entregam tudo no fim.
+    func solve(_ image: EncodedImage, options: SolveOptions,
+               onSegment: @escaping SegmentHandler) async throws -> SolveResponse {
+        try await solve(image, options: options)
+    }
 }
 
 enum ProviderError: LocalizedError {
