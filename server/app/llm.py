@@ -49,32 +49,46 @@ class LLMProvider(Protocol):
 class GeminiProvider:
     name = "gemini"
 
-    def __init__(self, api_key: str, model: str):
+    def __init__(self, api_key: str, model: str, thinking: str = "low"):
         if not api_key:
             raise LLMError("GEMINI_API_KEY não configurada no server/.env", retryable=False)
         from google import genai
 
         self._client = genai.Client(api_key=api_key)
         self.model = model
+        self.thinking = thinking
+
+    def _generate(self, image: bytes, mime: str, options: SolveOptions,
+                  feedback: Optional[str], thinking: str):
+        from google.genai import types
+
+        return self._client.models.generate_content(
+            model=self.model,
+            contents=[
+                types.Part.from_bytes(data=image, mime_type=mime),
+                build_user_message(options, feedback),
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt(),
+                response_mime_type="application/json",
+                response_schema=ModelAnswer,
+                temperature=0.2,
+                thinking_config=(types.ThinkingConfig(thinking_level=thinking.upper())
+                                 if thinking else None),
+            ),
+        )
 
     def analyze(self, image: bytes, mime: str, options: SolveOptions,
                 feedback: Optional[str] = None) -> ModelAnswer:
-        from google.genai import types
-
         try:
-            resp = self._client.models.generate_content(
-                model=self.model,
-                contents=[
-                    types.Part.from_bytes(data=image, mime_type=mime),
-                    build_user_message(options, feedback),
-                ],
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt(),
-                    response_mime_type="application/json",
-                    response_schema=ModelAnswer,
-                    temperature=0.2,
-                ),
-            )
+            try:
+                resp = self._generate(image, mime, options, feedback, self.thinking)
+            except Exception as exc:  # noqa: BLE001
+                # Modelo que nao aceita thinking_level: tenta sem limitar o raciocinio.
+                if not self.thinking or "think" not in str(exc).lower():
+                    raise
+                self.thinking = ""
+                resp = self._generate(image, mime, options, feedback, "")
         except Exception as exc:  # noqa: BLE001 - erros de rede/cota do SDK
             raise LLMError(f"falha ao chamar o Gemini: {type(exc).__name__}: {exc}") from exc
         if not resp.text:
@@ -135,5 +149,5 @@ def get_provider(settings: Settings) -> LLMProvider:
     if settings.llm_provider == "fake":
         return FakeProvider()
     if settings.llm_provider == "gemini":
-        return GeminiProvider(settings.gemini_api_key, settings.gemini_model)
+        return GeminiProvider(settings.gemini_api_key, settings.gemini_model, settings.gemini_thinking)
     raise LLMError(f"LLM_PROVIDER desconhecido: {settings.llm_provider}", retryable=False)

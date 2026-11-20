@@ -20,6 +20,8 @@ class Settings:
     verify_timeout_seconds: float
     max_retries_on_verify_fail: int
     history_db: Path
+    # Nivel de raciocinio do Gemini (minimal/low/medium/high); vazio = padrao do modelo (mais lento)
+    gemini_thinking: str = "low"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -34,4 +36,5 @@ class Settings:
             verify_timeout_seconds=float(os.getenv("VERIFY_TIMEOUT_SECONDS", "8")),
             max_retries_on_verify_fail=int(os.getenv("MAX_RETRIES_ON_VERIFY_FAIL", "1")),
             history_db=db,
+            gemini_thinking=os.getenv("GEMINI_THINKING", "low").strip().lower(),
         )

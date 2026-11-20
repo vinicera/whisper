@@ -62,10 +62,16 @@ struct SettingsView: View {
                             settings.geminiModel = AppSettings.defaultGeminiModel
                         }
                     }
+                    Picker("Raciocínio", selection: $settings.thinkingLevel) {
+                        Text("Rápido").tag("low")
+                        Text("Caprichado").tag("high")
+                        Text("Padrão do modelo").tag("")
+                    }
                 } header: {
                     Text("Gemini direto")
                 } footer: {
-                    Text("A chave fica guardada no Keychain do iPhone.")
+                    Text("A chave fica guardada no Keychain do iPhone. Rápido responde bem mais cedo; "
+                        + "Caprichado pensa mais em questões difíceis.")
                 }
 
                 Section("Foto") {

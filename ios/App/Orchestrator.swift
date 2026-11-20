@@ -21,10 +21,19 @@ final class Orchestrator: ObservableObject {
     @Published private(set) var lastResponse: SolveResponse?
     @Published private(set) var lastProviderLabel = ""
     @Published private(set) var logs: [LogEntry] = []
+    /// Inicio da resolucao em andamento (para o cronometro na tela).
+    @Published private(set) var workingSince: Date?
 
     let settings: AppSettings
     let speech: SpeechService
     private var task: Task<Void, Never>?
+    private var watchdog: Task<Void, Never>?
+    private var timedOut = false
+
+    /// Tempo maximo de uma resolucao antes de desistir com aviso.
+    static let solveTimeout: TimeInterval = 75
+    /// Intervalo do aviso falado "ainda resolvendo".
+    static let heartbeatInterval: TimeInterval = 15
 
     init(settings: AppSettings, speech: SpeechService) {
         self.settings = settings
@@ -50,6 +59,7 @@ final class Orchestrator: ObservableObject {
     }
 
     func cancel() {
+        stopWatchdog()
         task?.cancel()
         task = nil
         speech.stop()
@@ -60,6 +70,8 @@ final class Orchestrator: ObservableObject {
 
     private func run(origin: String, load: @escaping () async throws -> EncodedImage) {
         task?.cancel()
+        stopWatchdog()
+        timedOut = false
         speech.speechRateSync(settings.speechRate)
         task = Task { [weak self] in
             guard let self else { return }
@@ -75,8 +87,10 @@ final class Orchestrator: ObservableObject {
 
                 self.phase = .working("Resolvendo (\(provider.label))")
                 let started = Date()
+                self.startWatchdog()
                 let options = SolveOptions(mode: self.settings.solveMode)
                 let response = try await provider.solve(image, options: options)
+                self.stopWatchdog()
                 try Task.checkCancellation()
 
                 let seconds = String(format: "%.1f", Date().timeIntervalSince(started))
@@ -90,11 +104,20 @@ final class Orchestrator: ObservableObject {
                 self.speech.speak(segments: response.speech.segments.isEmpty
                     ? [SpeechSegment(id: 1, kind: "aviso", text: response.speech.fullText)]
                     : response.speech.segments)
+            } catch let error where self.timedOut {
+                self.stopWatchdog()
+                let message = "Demorou demais, mais de \(Int(Self.solveTimeout)) segundos. "
+                    + "Tente de novo ou use o raciocínio Rápido."
+                self.log("Erro: tempo esgotado (\(error.localizedDescription))")
+                self.phase = .failed(message)
+                self.speech.announce(message)
             } catch is CancellationError {
+                // cancel()/run() ja pararam o cronometro; nao mexer (pode ser de uma resolucao nova).
                 self.log("Cancelado")
             } catch let error as URLError where error.code == .cancelled {
                 self.log("Cancelado")
             } catch {
+                self.stopWatchdog()
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 self.log("Erro: \(message)")
                 self.phase = .failed(message)
@@ -103,8 +126,41 @@ final class Orchestrator: ObservableObject {
         }
     }
 
+    /// Cronometro + aviso falado periodico + desistencia apos `solveTimeout`.
+    private func startWatchdog() {
+        stopWatchdog()
+        timedOut = false
+        workingSince = Date()
+        let interval = Self.heartbeatInterval
+        let limit = Self.solveTimeout
+        watchdog = Task { [weak self] in
+            var elapsed: TimeInterval = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                guard let self, !Task.isCancelled else { return }
+                elapsed += interval
+                if elapsed >= limit {
+                    self.timedOut = true
+                    self.task?.cancel()
+                    return
+                }
+                if !self.speech.isSpeaking { self.speech.announce("Ainda resolvendo.") }
+            }
+        }
+    }
+
+    private func stopWatchdog() {
+        watchdog?.cancel()
+        watchdog = nil
+        workingSince = nil
+    }
+
     private func chooseProvider() async throws -> SolveProvider {
-        let direct = DirectGeminiProvider(apiKey: settings.geminiKey, model: settings.geminiModel)
+        let direct = DirectGeminiProvider(
+            apiKey: settings.geminiKey,
+            model: settings.geminiModel,
+            thinkingLevel: settings.thinkingLevel,
+            log: { [weak self] message in self?.log(message) })
         let bridge = settings.bridgeBaseURL.map { BridgeProvider(baseURL: $0, token: settings.bridgeToken) }
 
         switch settings.connection {

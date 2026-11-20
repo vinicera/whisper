@@ -2,7 +2,7 @@ import Core
 import Photos
 import UIKit
 
-/// Imagem pronta para envio: JPEG reduzido (lado maior <= 1600 px) em base64.
+/// Imagem pronta para envio: JPEG reduzido (lado maior <= 1280 px) em base64.
 struct EncodedImage {
     let jpeg: Data
     let width: Int
@@ -36,8 +36,8 @@ enum ImageLoaderError: LocalizedError {
 }
 
 enum ImageLoader {
-    static let maxSide: CGFloat = 1600
-    static let jpegQuality: CGFloat = 0.7
+    static let maxSide: CGFloat = 1280
+    static let jpegQuality: CGFloat = 0.6
 
     static func requestAccess() async -> Bool {
         let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)

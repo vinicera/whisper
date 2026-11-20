@@ -59,7 +59,14 @@ struct ContentView: View {
                 statusIcon
                 VStack(alignment: .leading, spacing: 2) {
                     Text(statusTitle).font(.headline)
-                    Text(statusSubtitle).font(.footnote).foregroundStyle(.secondary)
+                    if let since = orchestrator.workingSince {
+                        TimelineView(.periodic(from: since, by: 1)) { context in
+                            Text("\(Int(context.date.timeIntervalSince(since))) s · \(statusSubtitle)")
+                                .font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                    } else {
+                        Text(statusSubtitle).font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 if orchestrator.isBusy {

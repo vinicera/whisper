@@ -39,6 +39,10 @@ final class AppSettings: ObservableObject {
     @Published var speechRate: Double {
         didSet { defaults.set(speechRate, forKey: "speechRate") }
     }
+    /// Nivel de raciocinio do Gemini no Modo Direto ("" = padrao do modelo, mais lento).
+    @Published var thinkingLevel: String {
+        didSet { defaults.set(thinkingLevel, forKey: "thinkingLevel") }
+    }
     @Published var bridgeToken: String {
         didSet { Keychain.set(bridgeToken, for: "bridgeToken") }
     }
@@ -55,6 +59,7 @@ final class AppSettings: ObservableObject {
         geminiModel = defaults.string(forKey: "geminiModel") ?? Self.defaultGeminiModel
         maxPhotoAgeMinutes = defaults.object(forKey: "maxPhotoAgeMinutes") as? Int ?? 10
         speechRate = defaults.object(forKey: "speechRate") as? Double ?? 0.5
+        thinkingLevel = defaults.string(forKey: "thinkingLevel") ?? "low"
         bridgeToken = Keychain.get("bridgeToken")
         geminiKey = Keychain.get("geminiKey")
     }
