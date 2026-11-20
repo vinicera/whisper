@@ -216,7 +216,8 @@ final class Orchestrator: ObservableObject {
             model: settings.geminiModel,
             thinkingLevel: settings.thinkingLevel,
             log: { [weak self] message in self?.log(message) },
-            onProgress: { [weak self] in self?.lastActivity = Date() })
+            onProgress: { [weak self] in self?.lastActivity = Date() },
+            notice: { [weak self] message in self?.speech.interject(message) })
         let bridge = settings.bridgeBaseURL.map { BridgeProvider(baseURL: $0, token: settings.bridgeToken) }
 
         switch settings.connection {

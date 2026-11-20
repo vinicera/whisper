@@ -29,6 +29,8 @@ enum ProviderError: LocalizedError {
         case .notConfigured(let msg): return msg
         case .http(401, _): return "O token da ponte está errado. Confira nas configurações."
         case .http(429, _): return "Limite de uso da inteligência artificial atingido. Tente daqui a pouco."
+        case .http(let code, _) where (500...504).contains(code):
+            return "O Gemini está sobrecarregado agora, do lado do Google. Tente de novo em alguns minutos."
         case .http(let code, let msg): return "O servidor respondeu com erro \(code). \(msg)"
         case .badResponse(let msg): return "Resposta inválida da inteligência artificial. \(msg)"
         }

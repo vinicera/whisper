@@ -12,6 +12,8 @@ struct DirectGeminiProvider: SolveProvider {
     var log: @MainActor (String) -> Void = { _ in }
     /// Chamado a cada pedaco recebido (sinal de vida, mesmo sem trecho completo).
     var onProgress: @MainActor () -> Void = {}
+    /// Aviso curto para falar ao aluno (ex.: "tentando de novo").
+    var notice: @MainActor (String) -> Void = { _ in }
 
     var label: String { "Direto (\(model))" }
 
@@ -57,13 +59,27 @@ struct DirectGeminiProvider: SolveProvider {
         else { throw ProviderError.notConfigured("Nome de modelo inválido: \(modelId)") }
 
         let level = thinkingLevel.trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            return try await call(url: url, image: image, options: options,
-                                  thinking: level.isEmpty ? nil : level, onSegment: onSegment)
-        } catch ProviderError.http(400, let message) where !level.isEmpty && message.lowercased().contains("think") {
-            // Modelo que nao aceita thinkingLevel: tenta de novo sem limitar o raciocinio.
-            await log("O modelo recusou o nível de raciocínio (\(level)); tentando sem limite.")
-            return try await call(url: url, image: image, options: options, thinking: nil, onSegment: onSegment)
+        var thinking: String? = level.isEmpty ? nil : level
+        // Sobrecarga do Google (503 etc.) costuma passar em segundos: tenta de novo antes de desistir.
+        let retryDelays: [UInt64] = [2, 5, 10]
+        var attempt = 0
+        while true {
+            do {
+                return try await call(url: url, image: image, options: options,
+                                      thinking: thinking, onSegment: onSegment)
+            } catch ProviderError.http(400, let message) where thinking != nil && message.lowercased().contains("think") {
+                // Modelo que nao aceita thinkingLevel: tenta de novo sem limitar o raciocinio.
+                await log("O modelo recusou o nível de raciocínio (\(level)); tentando sem limite.")
+                thinking = nil
+            } catch ProviderError.http(let code, _) where [500, 502, 503, 504].contains(code) && attempt < retryDelays.count {
+                let wait = retryDelays[attempt]
+                attempt += 1
+                await log("Gemini sobrecarregado (\(code)); tentativa \(attempt + 1) em \(wait)s")
+                await notice("O Gemini está sobrecarregado. Tentando de novo.")
+                await onProgress()
+                try await Task.sleep(nanoseconds: wait * 1_000_000_000)
+                await onProgress()
+            }
         }
     }
 
