@@ -63,6 +63,7 @@ struct SettingsView: View {
                         }
                     }
                     Picker("Raciocínio", selection: $settings.thinkingLevel) {
+                        Text("Mínimo").tag("minimal")
                         Text("Rápido").tag("low")
                         Text("Caprichado").tag("high")
                         Text("Padrão do modelo").tag("")

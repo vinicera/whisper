@@ -10,6 +10,8 @@ struct DirectGeminiProvider: SolveProvider {
     var thinkingLevel: String = "low"
     /// Eventos de diagnostico (vao para o registro de depuracao).
     var log: @MainActor (String) -> Void = { _ in }
+    /// Chamado a cada pedaco recebido (sinal de vida, mesmo sem trecho completo).
+    var onProgress: @MainActor () -> Void = {}
 
     var label: String { "Direto (\(model))" }
 
@@ -74,6 +76,8 @@ struct DirectGeminiProvider: SolveProvider {
             "responseMimeType": "application/json",
             "responseSchema": GeminiSchema.modelAnswer,
             "temperature": 0.2,
+            // Teto contra loops de saida estruturada (uma resolucao longa usa bem menos).
+            "maxOutputTokens": 16384,
         ]
         if let thinking {
             generation["thinkingConfig"] = ["thinkingLevel": thinking]
@@ -112,20 +116,39 @@ struct DirectGeminiProvider: SolveProvider {
         var extractor = StreamingSegmentExtractor(mode: options.mode)
         var usage: GeminiResponse.Usage?
         var finish: String?
-        for try await line in bytes.lines {
-            guard line.hasPrefix("data:") else { continue }
-            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-            guard let chunk = try? JSONDecoder().decode(GeminiResponse.self, from: Data(payload.utf8)) else { continue }
-            if let message = chunk.error?.message { throw ProviderError.http(code, message) }
-            usage = chunk.usageMetadata ?? usage
-            finish = chunk.candidates?.first?.finishReason ?? finish
-            let piece = chunk.answerText
-            guard !piece.isEmpty else { continue }
-            if text.isEmpty { await log("Primeiro texto do Gemini em \(elapsed())s") }
-            text += piece
-            for segment in extractor.feed(text) {
-                await onSegment(segment)
+        var chunks = 0
+        var undecodable = 0
+        do {
+            for try await line in bytes.lines {
+                guard line.hasPrefix("data:") else { continue }
+                let payload = line.dropFirst(5).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let chunk = try? JSONDecoder().decode(GeminiResponse.self, from: Data(payload.utf8)) else {
+                    undecodable += 1
+                    continue
+                }
+                chunks += 1
+                await onProgress()
+                if let message = chunk.error?.message { throw ProviderError.http(code, message) }
+                usage = chunk.usageMetadata ?? usage
+                finish = chunk.candidates?.first?.finishReason ?? finish
+                let piece = chunk.answerText
+                guard !piece.isEmpty else { continue }
+                if text.isEmpty { await log("Primeiro texto do Gemini em \(elapsed())s") }
+                text += piece
+                for segment in extractor.feed(text) {
+                    await log("Trecho \(segment.id) (\(segment.kind)) em \(elapsed())s")
+                    await onSegment(segment)
+                }
+                if Self.looksStuck(text) {
+                    throw ProviderError.badResponse("O Gemini entrou em repetição e não terminou a resposta.")
+                }
             }
+        } catch {
+            // Diagnostico: o que o modelo estava escrevendo quando parou.
+            let tail = String(text.suffix(160)).replacingOccurrences(of: "\n", with: "⏎")
+            await log("Interrompido em \(elapsed())s · \(chunks) pedaços, \(text.count) caracteres"
+                + (undecodable > 0 ? ", \(undecodable) ilegíveis" : "") + " · fim do texto: «\(tail)»")
+            throw error
         }
 
         if let u = usage {
@@ -144,5 +167,18 @@ struct DirectGeminiProvider: SolveProvider {
             throw ProviderError.badResponse("JSON fora do esquema (\(finish ?? "sem motivo")).")
         }
         return SegmentBuilder.response(from: answer, mode: options.mode)
+    }
+
+    /// Defeito conhecido de saida estruturada: o modelo repete espacos/quebras ou o mesmo
+    /// pedaco sem fechar o JSON. Detecta para falhar rapido em vez de esperar o limite.
+    static func looksStuck(_ text: String) -> Bool {
+        guard text.count > 600 else { return false }
+        let tail = String(text.suffix(400))
+        if tail.allSatisfy({ $0.isWhitespace }) { return true }
+        for unit in 1...40 {
+            let piece = String(tail.suffix(unit))
+            if tail.hasSuffix(String(repeating: piece, count: 400 / unit)) { return true }
+        }
+        return false
     }
 }

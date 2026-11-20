@@ -36,6 +36,8 @@ final class Orchestrator: ObservableObject {
 
     /// Tempo maximo de uma resolucao antes de desistir com aviso.
     static let solveTimeout: TimeInterval = 75
+    /// Teto absoluto, mesmo com o modelo mandando dados.
+    static let totalLimit: TimeInterval = 180
     /// Intervalo do aviso falado "ainda resolvendo".
     static let heartbeatInterval: TimeInterval = 15
 
@@ -152,8 +154,7 @@ final class Orchestrator: ObservableObject {
                     : response.speech.segments)
             } catch let error where self.timedOut {
                 self.stopWatchdog()
-                let message = "O Gemini ficou \(Int(Self.solveTimeout)) segundos sem responder. "
-                    + "Tente de novo ou use o raciocínio Rápido."
+                let message = "O Gemini demorou demais e a resolução foi interrompida. Tente de novo."
                 self.log("Erro: tempo esgotado (\(error.localizedDescription))")
                 self.phase = .failed(message)
                 self.speech.announce(message)
@@ -186,7 +187,8 @@ final class Orchestrator: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 guard let self, !Task.isCancelled else { return }
-                if Date().timeIntervalSince(self.lastActivity) >= limit {
+                let total = self.workingSince.map { Date().timeIntervalSince($0) } ?? 0
+                if Date().timeIntervalSince(self.lastActivity) >= limit || total >= Self.totalLimit {
                     self.timedOut = true
                     self.task?.cancel()
                     return
@@ -213,7 +215,8 @@ final class Orchestrator: ObservableObject {
             apiKey: settings.geminiKey,
             model: settings.geminiModel,
             thinkingLevel: settings.thinkingLevel,
-            log: { [weak self] message in self?.log(message) })
+            log: { [weak self] message in self?.log(message) },
+            onProgress: { [weak self] in self?.lastActivity = Date() })
         let bridge = settings.bridgeBaseURL.map { BridgeProvider(baseURL: $0, token: settings.bridgeToken) }
 
         switch settings.connection {
