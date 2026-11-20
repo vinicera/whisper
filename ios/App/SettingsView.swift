@@ -82,10 +82,10 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Voz") {
+                Section {
                     HStack {
                         Image(systemName: "tortoise")
-                        Slider(value: $settings.speechRate, in: 0.35...0.62)
+                        Slider(value: $settings.speechRate, in: 0.30...0.55)
                         Image(systemName: "hare")
                     }
                     .accessibilityLabel("Velocidade da fala")
@@ -98,6 +98,26 @@ struct SettingsView: View {
                     if !route.isEmpty {
                         Text("Saída: \(route)").font(.footnote).foregroundStyle(.secondary)
                     }
+                    LabeledContent("Voz em uso", value: SpeechService.bestVoiceDescription)
+                } header: {
+                    Text("Voz")
+                } footer: {
+                    Text("Para uma voz bem menos robótica: Ajustes do iPhone → Acessibilidade → Conteúdo Falado → "
+                        + "Vozes → Português (Brasil), e baixe uma voz \"Aprimorada\" ou \"Premium\". "
+                        + "O app passa a usá-la sozinho.")
+                }
+
+                Section {
+                    LabeledContent("1 toque", value: "pausa / continua")
+                    LabeledContent("2 toques", value: "repete o trecho")
+                    LabeledContent("3 toques", value: "volta um trecho")
+                    LabeledContent("4 toques", value: "vai para a resposta")
+                } header: {
+                    Text("Toques nos óculos")
+                } footer: {
+                    Text("Cada parte é anunciada (\"Passo dois de cinco\") e a resposta final é repetida devagar "
+                        + "no fim. Os toques recebidos aparecem no Registro, para conferir se os óculos estão "
+                        + "mandando os comandos.")
                 }
 
                 Section("Sobre") {

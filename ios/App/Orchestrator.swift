@@ -35,9 +35,35 @@ final class Orchestrator: ObservableObject {
     /// Intervalo do aviso falado "ainda resolvendo".
     static let heartbeatInterval: TimeInterval = 15
 
+    let remote = RemoteControl()
+
     init(settings: AppSettings, speech: SpeechService) {
         self.settings = settings
         self.speech = speech
+        remote.onLog = { [weak self] message in self?.log(message) }
+        remote.onAction = { [weak self] action in self?.handle(action) }
+        remote.start()
+    }
+
+    /// Toques nos oculos.
+    private func handle(_ action: RemoteControl.Action) {
+        if isBusy {
+            // Enquanto resolve, qualquer toque so informa o andamento.
+            let seconds = workingSince.map { Int(Date().timeIntervalSince($0)) } ?? 0
+            speech.announce("Ainda resolvendo. \(SpeechService.numberWord(seconds)) segundos.")
+            return
+        }
+        guard !speech.segments.isEmpty else {
+            speech.announce("Nenhuma resposta ainda. Peça para tirarem a foto da questão.")
+            return
+        }
+        switch action {
+        case .togglePause: speech.togglePause()
+        case .repeatCurrent: speech.repeatCurrent()
+        case .previous: speech.previous()
+        case .next: speech.next()
+        case .jumpToAnswer: speech.jumpToAnswer()
+        }
     }
 
     var isBusy: Bool {

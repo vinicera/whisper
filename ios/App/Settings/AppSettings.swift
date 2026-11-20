@@ -58,7 +58,7 @@ final class AppSettings: ObservableObject {
         bridgeURL = defaults.string(forKey: "bridgeURL") ?? ""
         geminiModel = defaults.string(forKey: "geminiModel") ?? Self.defaultGeminiModel
         maxPhotoAgeMinutes = defaults.object(forKey: "maxPhotoAgeMinutes") as? Int ?? 10
-        speechRate = defaults.object(forKey: "speechRate") as? Double ?? 0.5
+        speechRate = defaults.object(forKey: "speechRate") as? Double ?? 0.42
         thinkingLevel = defaults.string(forKey: "thinkingLevel") ?? "low"
         bridgeToken = Keychain.get("bridgeToken")
         geminiKey = Keychain.get("geminiKey")
