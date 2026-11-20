@@ -17,6 +17,20 @@ S = SIZE * SS
 OUT = Path(__file__).resolve().parents[1] / "App" / "Assets.xcassets"
 
 
+def math_font(size: int):
+    """Cambria Math (Windows) ou STIX Two Math; None se nenhuma existir."""
+    from PIL import ImageFont
+
+    for path, index in (("C:/Windows/Fonts/cambria.ttc", 1),
+                        ("/Library/Fonts/STIXTwoMath.otf", 0),
+                        ("/usr/share/fonts/opentype/stix/STIXTwoMath-Regular.otf", 0)):
+        try:
+            return ImageFont.truetype(path, size, index=index)
+        except OSError:
+            continue
+    return None
+
+
 def lerp(a, b, t):
     return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
 
@@ -70,14 +84,24 @@ def main() -> None:
     d = ImageDraw.Draw(img)
     white = (255, 255, 255)
 
-    # integral: S alongado com as pontas curvadas
-    upper = cubic((0.50, 0.20), (0.44, 0.13), (0.38, 0.22), (0.38, 0.36))
-    middle = cubic((0.38, 0.36), (0.38, 0.50), (0.35, 0.56), (0.35, 0.64))
-    lower = cubic((0.35, 0.64), (0.35, 0.78), (0.29, 0.87), (0.23, 0.80))
-    stroke(d, upper + middle[1:] + lower[1:], 0.075 * S, white)
+    # integral: glifo de uma fonte matematica (desenho tipografico correto)
+    font = math_font(int(S * 0.64))
+    if font:
+        glyph = "∫"
+        x0, y0, x1, y1 = d.textbbox((0, 0), glyph, font=font)
+        gw, gh = x1 - x0, y1 - y0
+        target_cx, target_cy = 0.38 * S, 0.50 * S
+        d.text((target_cx - gw / 2 - x0, target_cy - gh / 2 - y0), glyph, font=font, fill=white)
+        right_edge = (target_cx + gw / 2) / S
+    else:
+        upper = cubic((0.50, 0.20), (0.44, 0.13), (0.38, 0.22), (0.38, 0.36))
+        middle = cubic((0.38, 0.36), (0.38, 0.50), (0.35, 0.56), (0.35, 0.64))
+        lower = cubic((0.35, 0.64), (0.35, 0.78), (0.29, 0.87), (0.23, 0.80))
+        stroke(d, upper + middle[1:] + lower[1:], 0.075 * S, white)
+        right_edge = 0.50
 
     # ondas de som saindo do meio da integral
-    cx, cy = 0.44, 0.50
+    cx, cy = right_edge - 0.10, 0.50
     for i, (r, alpha) in enumerate(((0.14, 255), (0.24, 200), (0.34, 140))):
         col = lerp((12, 10, 38), (190, 200, 255), alpha / 255)
         arc(d, cx, cy, r, 0.045 - i * 0.006, col)
