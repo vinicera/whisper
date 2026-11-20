@@ -70,6 +70,7 @@
         "kind": {
           "enum": [
             "aviso",
+            "questao",
             "enunciado",
             "plano",
             "passo",
@@ -169,6 +170,26 @@
         }
       ],
       "default": null
+    },
+    "questoes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Questoes",
+      "type": "array"
+    },
+    "questao_atual": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Questao Atual"
     },
     "debug": {
       "additionalProperties": true,

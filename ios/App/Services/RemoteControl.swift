@@ -53,7 +53,7 @@ final class RemoteControl {
         startKeepAlive()
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: "Whisper",
-            MPMediaItemPropertyArtist: "Toque: 1 pausa, 2 repete, 3 volta, 4 resposta",
+            MPMediaItemPropertyArtist: "1 toque: pausa ou próxima · 2 repete · 3 volta · 4 resposta",
             MPNowPlayingInfoPropertyPlaybackRate: 1.0,
         ]
         onLog("Controle por toques ativo")

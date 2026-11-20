@@ -20,7 +20,7 @@ def build_user_message(options: SolveOptions, feedback: Optional[str]) -> str:
     lines = [
         f"Modo: {options.mode}",
         f"Detalhe: {options.detail}",
-        f"Questão indicada: {options.question_hint or 'nenhuma'}",
+        f"Questão indicada: {options.question_hint or 'nenhuma (é a primeira leitura desta folha)'}",
         f"Duração máxima da fala: {options.max_speech_seconds} segundos.",
         "Responda somente com o JSON no esquema fornecido.",
     ]
@@ -109,9 +109,10 @@ class FakeProvider:
     name = "fake"
     model = "fake-v1"
 
-    def __init__(self, wrong_first: bool = False, unreadable: bool = False):
+    def __init__(self, wrong_first: bool = False, unreadable: bool = False, sheet: bool = False):
         self.wrong_first = wrong_first
         self.unreadable = unreadable
+        self.sheet = sheet  # simula uma folha com tres questoes
         self.calls = 0
 
     def analyze(self, image: bytes, mime: str, options: SolveOptions,
@@ -124,7 +125,17 @@ class FakeProvider:
             )
         wrong = self.wrong_first and self.calls == 1
         resultado = "2*x*sin(x)" if wrong else "2*x*sin(x) + x**2*cos(x)"
+        sheet: dict = {}
+        if self.sheet:
+            first = not options.question_hint
+            sheet = dict(
+                questoes_na_folha=["questão um", "questão dois, item a", "questão dois, item b"],
+                questao_atual=1 if first else 2,
+                questao_falada=("Esta folha tem três questões. Começando pela questão um." if first
+                                else "Questão dois, item a."),
+            )
         return ModelAnswer(
+            **sheet,
             legivel=True,
             enunciado_latex=r"\frac{d}{dx}\left(x^2 \sin x\right)",
             enunciado_falado="Calcule a derivada em relação a x de x ao quadrado vezes seno de x.",

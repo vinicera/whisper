@@ -72,6 +72,8 @@ def build_segments(answer: ModelAnswer, mode: str, vr: Optional[VerifyResult]) -
     segs: list[tuple[str, str]] = []
     if vr and vr.performed and vr.passed is False:
         segs.append(("aviso", "Atenção: o verificador matemático não confirmou este resultado. Confira com cuidado."))
+    if answer.questao_falada:
+        segs.append(("questao", _clean(answer.questao_falada)))
     if answer.enunciado_falado:
         segs.append(("enunciado", _clean(answer.enunciado_falado)))
     if mode != "ditado":
@@ -143,6 +145,8 @@ def solve(req: SolveRequest, provider: LLMProvider, *, verify_timeout: float = 8
             passed=vr.passed if vr else None,
             notes=vr.notes if vr else "verificação não aplicável",
         ),
+        questoes=answer.questoes_na_folha,
+        questao_atual=answer.questao_atual if answer.questoes_na_folha else None,
         debug={
             "transcribed_latex": answer.enunciado_latex,
             "final_latex": answer.resposta_latex,

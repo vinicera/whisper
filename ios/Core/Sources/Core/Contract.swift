@@ -163,14 +163,20 @@ public struct SolveResponse: Codable, Sendable {
     public var speech: Speech
     public var verification: Verification
     public var error: ErrorInfo?
+    /// Folha com varias questoes: rotulos na ordem de leitura (vazio/nil = questao unica).
+    public var questoes: [String]?
+    /// Posicao (1 = primeira) da questao resolvida em `questoes`.
+    public var questaoAtual: Int?
 
     public init(requestId: String, status: SolveStatus, speech: Speech, verification: Verification,
-                error: ErrorInfo? = nil) {
+                error: ErrorInfo? = nil, questoes: [String]? = nil, questaoAtual: Int? = nil) {
         self.requestId = requestId
         self.status = status
         self.speech = speech
         self.verification = verification
         self.error = error
+        self.questoes = questoes
+        self.questaoAtual = questaoAtual
     }
 }
 

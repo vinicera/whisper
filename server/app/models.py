@@ -52,7 +52,7 @@ class SolveRequest(BaseModel):
 # Servidor -> App
 # --------------------------------------------------------------------------
 
-SegmentKind = Literal["aviso", "enunciado", "plano", "passo", "resposta"]
+SegmentKind = Literal["aviso", "questao", "enunciado", "plano", "passo", "resposta"]
 Status = Literal["ok", "partial", "unreadable", "error"]
 
 
@@ -88,6 +88,9 @@ class SolveResponse(BaseModel):
     speech: Speech
     verification: Verification = Verification()
     error: Optional[ErrorInfo] = None
+    # Folha com varias questoes: rotulos na ordem de leitura e qual foi resolvida (1 = primeira).
+    questoes: list[str] = []
+    questao_atual: Optional[int] = None
     debug: dict = {}
 
 
@@ -135,6 +138,12 @@ class Passo(BaseModel):
 class ModelAnswer(BaseModel):
     legivel: bool
     motivo_ilegivel_falado: Optional[str] = None
+    questoes_na_folha: list[str] = Field(
+        default_factory=list,
+        description="Rotulos curtos e falados de TODAS as questoes da imagem, na ordem de leitura. "
+                    "Ex.: ['questão um', 'questão dois, item a', 'questão dois, item b']")
+    questao_atual: int = Field(1, description="Posicao (comecando em 1) da questao resolvida na lista")
+    questao_falada: str = Field("", description="Frase falada que situa o estudante na folha")
     enunciado_latex: str = ""
     enunciado_falado: str = ""
     tipo: Literal[

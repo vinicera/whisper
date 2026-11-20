@@ -5,6 +5,9 @@ import XCTest
 final class StreamingSegmentsTests: XCTestCase {
     private let json = """
     {"legivel": true,
+     "questoes_na_folha": ["questão um", "questão dois, item a"],
+     "questao_atual": 1,
+     "questao_falada": "Esta folha tem duas questões. Começando pela questão um.",
      "enunciado_latex": "\\\\lim_{x \\\\to 0} \\\\frac{\\\\sin x}{x}",
      "enunciado_falado": "Calcule o limite quando x tende a zero de seno de x sobre x.",
      "tipo": "limite",
@@ -53,8 +56,16 @@ final class StreamingSegmentsTests: XCTestCase {
         var extractor = StreamingSegmentExtractor(mode: .tutor)
         let cut = json.range(of: "\"tipo\"")!.lowerBound
         let first = extractor.feed(String(json[..<cut]))
-        XCTAssertEqual(first.map(\.kind), ["enunciado"])
+        XCTAssertEqual(first.map(\.kind), ["questao", "enunciado"])
         XCTAssertTrue(extractor.feed(String(json[..<cut])).isEmpty)  // nada repetido
+    }
+
+    func testSheetInfoReachesResponse() throws {
+        let answer = try Contract.decoder.decode(ModelAnswer.self, from: Data(json.utf8))
+        let r = SegmentBuilder.response(from: answer, mode: .tutor)
+        XCTAssertEqual(r.questoes, ["questão um", "questão dois, item a"])
+        XCTAssertEqual(r.questaoAtual, 1)
+        XCTAssertEqual(r.speech.segments.first?.kind, "questao")
     }
 
     func testIncompleteStringIsNotEmitted() {

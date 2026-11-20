@@ -62,6 +62,17 @@ enum ImageLoader {
         return try encode(image, source: .photoLibrary, capturedAt: asset.creationDate)
     }
 
+    /// Data da foto mais recente, sem carregar a imagem (nil se nao ha acesso ou fotos).
+    static func latestPhotoDate() -> Date? {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard status == .authorized || status == .limited else { return nil }
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+        options.fetchLimit = 1
+        return PHAsset.fetchAssets(with: options).firstObject?.creationDate
+    }
+
     private static func loadImage(_ asset: PHAsset) async throws -> UIImage {
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true  // foto pode estar so no iCloud

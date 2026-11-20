@@ -37,6 +37,9 @@ enum GeminiSchema {
         "properties": [
             "legivel": ["type": "BOOLEAN"],
             "motivo_ilegivel_falado": optionalString,
+            "questoes_na_folha": ["type": "ARRAY", "items": ["type": "STRING"]] as [String: Any],
+            "questao_atual": ["type": "INTEGER"],
+            "questao_falada": string,
             "enunciado_latex": string,
             "enunciado_falado": string,
             "tipo": ["type": "STRING", "enum": [
@@ -74,9 +77,10 @@ enum GeminiSchema {
             "resposta_falada": string,
             "resposta_latex": string,
         ] as [String: Any],
-        "required": ["legivel", "enunciado_falado", "resposta_falada"],
+        "required": ["legivel", "questoes_na_folha", "questao_atual", "enunciado_falado", "resposta_falada"],
         "propertyOrdering": [
-            "legivel", "motivo_ilegivel_falado", "enunciado_latex", "enunciado_falado", "tipo",
+            "legivel", "motivo_ilegivel_falado", "questoes_na_folha", "questao_atual", "questao_falada",
+            "enunciado_latex", "enunciado_falado", "tipo",
             "plano_falado", "sympy", "passos", "resposta_falada", "resposta_latex",
         ],
     ]

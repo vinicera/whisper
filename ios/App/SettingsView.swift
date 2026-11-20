@@ -109,16 +109,19 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    LabeledContent("1 toque", value: "pausa / continua")
+                    LabeledContent("1 toque falando", value: "pausa / continua")
+                    LabeledContent("1 toque no fim", value: "próxima questão ou foto nova")
+                    LabeledContent("1 toque sem resposta", value: "resolve a última foto")
                     LabeledContent("2 toques", value: "repete o trecho")
                     LabeledContent("3 toques", value: "volta um trecho")
                     LabeledContent("4 toques", value: "vai para a resposta")
                 } header: {
                     Text("Toques nos óculos")
                 } footer: {
-                    Text("Cada parte é anunciada (\"Passo dois de cinco\") e a resposta final é repetida devagar "
-                        + "no fim. Os toques recebidos aparecem no Registro, para conferir se os óculos estão "
-                        + "mandando os comandos.")
+                    Text("Folha com várias questões: o app conta as questões e resolve uma por vez, adiantando a "
+                        + "próxima enquanto o aluno ouve. Uma foto nova na galeria (por exemplo, tirada pelo botão "
+                        + "dos óculos e importada pelo app Meta AI) começa uma folha nova. Os toques recebidos "
+                        + "aparecem no Registro.")
                 }
 
                 Section("Sobre") {

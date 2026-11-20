@@ -43,6 +43,26 @@ def test_health(tmp_path):
         assert r.json()["llm_provider"] == "fake"
 
 
+def test_sheet_with_several_questions(tmp_path):
+    with make_client(tmp_path, FakeProvider(sheet=True)) as c:
+        first = c.post("/v1/solve", json=payload(), headers=AUTH).json()
+        assert first["questoes"] == ["questão um", "questão dois, item a", "questão dois, item b"]
+        assert first["questao_atual"] == 1
+        segs = first["speech"]["segments"]
+        assert segs[0]["kind"] == "questao" and "três questões" in segs[0]["text"]
+
+        hint = "posição 2 de 3 na lista: " + "; ".join(first["questoes"])
+        second = c.post("/v1/solve", json=payload(question_hint=hint), headers=AUTH).json()
+        assert second["questao_atual"] == 2
+        assert second["speech"]["segments"][0]["text"] == "Questão dois, item a."
+
+
+def test_single_question_has_no_sheet_info(tmp_path):
+    with make_client(tmp_path, FakeProvider()) as c:
+        body = c.post("/v1/solve", json=payload(), headers=AUTH).json()
+        assert body["questoes"] == [] and body["questao_atual"] is None
+
+
 def test_auth_required(tmp_path):
     with make_client(tmp_path, FakeProvider()) as c:
         assert c.post("/v1/solve", json=payload()).status_code == 401

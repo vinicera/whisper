@@ -16,7 +16,7 @@ public struct StreamingSegmentExtractor {
     private var segmentCount = 0
 
     private static let fieldRegex = try! NSRegularExpression(
-        pattern: #""(enunciado_falado|plano_falado|falado|resposta_falada)"\s*:\s*"((?:[^"\\]|\\.)*)""#)
+        pattern: #""(questao_falada|enunciado_falado|plano_falado|falado|resposta_falada)"\s*:\s*"((?:[^"\\]|\\.)*)""#)
     private static let unreadableRegex = try! NSRegularExpression(pattern: #""legivel"\s*:\s*false"#)
 
     public init(mode: SolveMode) {
@@ -38,6 +38,8 @@ public struct StreamingSegmentExtractor {
             let key = ns.substring(with: m.range(at: 1))
             let value = Self.unescape(ns.substring(with: m.range(at: 2)))
             switch key {
+            case "questao_falada":
+                raw.append(("questao", value))
             case "enunciado_falado":
                 raw.append(("enunciado", value))
             case "plano_falado" where mode == .tutor:

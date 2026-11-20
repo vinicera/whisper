@@ -28,6 +28,11 @@ public struct Passo: Codable, Sendable {
 public struct ModelAnswer: Codable, Sendable {
     public var legivel: Bool
     public var motivoIlegivelFalado: String?
+    /// Rotulos falados de todas as questoes da folha, na ordem de leitura.
+    public var questoesNaFolha: [String]?
+    /// Posicao (1 = primeira) da questao resolvida.
+    public var questaoAtual: Int?
+    public var questaoFalada: String?
     public var enunciadoLatex: String?
     public var enunciadoFalado: String?
     public var tipo: String?
@@ -53,6 +58,7 @@ public struct ModelAnswer: Codable, Sendable {
 public enum SegmentBuilder {
     public static func segments(from a: ModelAnswer, mode: SolveMode) -> [SpeechSegment] {
         var raw: [(String, String)] = []
+        if let q = a.questaoFalada { raw.append(("questao", q)) }
         if let e = a.enunciadoFalado { raw.append(("enunciado", e)) }
         if mode != .ditado {
             if mode == .tutor, let p = a.planoFalado { raw.append(("plano", p)) }
@@ -84,9 +90,15 @@ public enum SegmentBuilder {
         }
         let segs = segments(from: a, mode: mode)
         let full = segs.map(\.text).joined(separator: " ")
-        return SolveResponse(
+        var response = SolveResponse(
             requestId: requestId, status: .ok,
             speech: Speech(fullText: full, segments: segs),
             verification: Verification(performed: false, notes: "Modo Direto: sem verificação SymPy"))
+        let labels = a.questoesNaFolha ?? []
+        if !labels.isEmpty {
+            response.questoes = labels
+            response.questaoAtual = a.questaoAtual ?? 1
+        }
+        return response
     }
 }

@@ -147,6 +147,26 @@
       "default": null,
       "title": "Motivo Ilegivel Falado"
     },
+    "questoes_na_folha": {
+      "description": "Rotulos curtos e falados de TODAS as questoes da imagem, na ordem de leitura. Ex.: ['questão um', 'questão dois, item a', 'questão dois, item b']",
+      "items": {
+        "type": "string"
+      },
+      "title": "Questoes Na Folha",
+      "type": "array"
+    },
+    "questao_atual": {
+      "default": 1,
+      "description": "Posicao (comecando em 1) da questao resolvida na lista",
+      "title": "Questao Atual",
+      "type": "integer"
+    },
+    "questao_falada": {
+      "default": "",
+      "description": "Frase falada que situa o estudante na folha",
+      "title": "Questao Falada",
+      "type": "string"
+    },
     "enunciado_latex": {
       "default": "",
       "title": "Enunciado Latex",
